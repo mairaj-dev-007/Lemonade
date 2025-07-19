@@ -38,18 +38,27 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
+      - name: Deploy on EC2 via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
             echo "Pulling latest Docker image..."
             docker pull ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
 
-            echo "Stopping and removing existing container..."
-            docker stop nextjs-app || true
-            docker rm nextjs-app || true
+            echo "Force remove existing container if exists..."
+            docker rm -f nextjs-app || true
 
-            echo "Killing any process using port 3000..."
-            fuser -k 3000/tcp || true
+            echo "Kill any process using port 3000..."
+            sudo fuser -k 3000/tcp || true
 
-            echo "Starting a new container..."
+            echo "Wait a few seconds for port to free up..."
+            sleep 3
+
+            echo "Running new container..."
             docker run -d --name nextjs-app -p 3000:3000 \
               -e NODE_ENV=production \
               ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
