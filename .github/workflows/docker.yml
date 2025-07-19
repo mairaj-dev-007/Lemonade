@@ -21,25 +21,30 @@ jobs:
 
       - name: Create .env file
         run: echo "${{ secrets.ENV_FILE }}" > .env
-        
-      - name: Show .env
+
+      - name: Show .env contents (for debugging only - remove later)
         run: cat .env
 
       - name: Build Docker Image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nextjs-app .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest .
 
-      - name: Push Docker Image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/nextjs-app
+      - name: Push Docker Image to Docker Hub
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
 
-      - name: Deploy to EC2
+      - name: Deploy on EC2 via SSH
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
-          key: ${{ secrets.EC2_KEY }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
           script: |
-            docker pull ${{ secrets.DOCKER_USERNAME }}/nextjs-app
+            docker pull ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
+
             docker stop nextjs-app || true
             docker rm nextjs-app || true
-            docker run -d --name nextjs-app -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/nextjs-app
+
+            docker run -d --name nextjs-app -p 3000:3000 \
+              -e NODE_ENV=production \
+              ${{ secrets.DOCKER_USERNAME }}/nextjs-app:latest
 
